@@ -18,16 +18,15 @@ COPYPATH     = ""
 TIMETOWAIT   = 3600*24*2
 
 ###################################################################################
-
-
-logo1 = "./res/logo1.png"
-logo2 = "./res/logo2.png"
-TIMEPATH     = "./time"
+BASE = os.path.dirname(os.path.realpath(__file__))
+logo1 = BASE+"/res/logo1.png"
+logo2 = BASE+"/res/logo2.png"
+TIMEPATH     = BASE+"/time"
 COMMAND = "open {}".format(COPYPATH)
 PID = os.getpid()
 TIMETOWAIT = 3600*24*2
 
-def notify(message, title="Synchronizer", subtitle=None, logo=logo2, open=None, execute=None, group=PID, activate=None, sender=None, image=None, sound="default"):
+def notify(message=None, title="Synchronizer", subtitle=None, logo=logo2, open=None, execute=None, group=PID, activate=None, sender=None, image=None, sound="default", remove=None):
     arg = ""
     if(message) : arg += "-message \"%s\" "      %message
     if(sound)   : arg += "-sound \"%s\" "        %sound
@@ -40,8 +39,15 @@ def notify(message, title="Synchronizer", subtitle=None, logo=logo2, open=None, 
     if(activate): arg += "-activate \"%s\" "     %activate
     if(sender)  : arg += "-sender \"%s\" "       %sender
     if(group)   : arg += "-group \"%s\" "        %group
+    if(remove)  : arg += "-remove \"%s\" "       %remove
     command = "terminal-notifier %s" %(arg)
     os.system(command)
+
+def set_pid():
+    with open("PID", "w") as fd:
+        os.system("say hello")
+        fd.write(str(PID))
+        fd.close()
 
 def set_time():
     with open(TIMEPATH, "w") as fd:
@@ -65,15 +71,19 @@ def synchronize():
     return subprocess.call("rsync -au --delete %s %s" %(ORIGINALPATH, COPYPATH), shell=True)
 
 if __name__=='__main__':
-    notify('Synchronisation activée', execute=COMMAND)
-    sleep(5)
-    while True:
-        ret = synchronize()
-        if(ret == 0):
-            notify('Synchronisation réussie', execute=COMMAND)
-            TIMER = TIMETOWAIT
-            set_time()
-        else:
-            notify("Plus synchronisé depuis %d jours"%(delta_time(localtime(), get_time())), subtitle="Réessaye dans 1 jour", execute=COMMAND)
-            TIMER = 3600*24
-        sleep(TIMER)
+    set_pid()
+    try :
+        notify('Synchronisation activée', execute=COMMAND)
+        sleep(5)
+        while True:
+            ret = synchronize()
+            if(ret == 0):
+                notify('Synchronisation réussie', execute=COMMAND)
+                TIMER = TIMETOWAIT
+                set_time()
+            else:
+                notify("Plus synchronisé depuis %d jours"%(delta_time(localtime(), get_time())), subtitle="Réessaye dans 1 jour", execute=COMMAND)
+                TIMER = 3600*24
+            sleep(TIMER)
+    finally :
+        notify(title=None, logo=None, sound=None, group=None, remove=PID)
